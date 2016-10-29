@@ -51,7 +51,6 @@ void kernel_thread()
     while(1){
         *ptr = *ptr+1;
         kprintf("thread: %s, val: %d\n", thread_self()->td_name, *ptr);
-        sched_yield();
     }
 }
 
