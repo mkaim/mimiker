@@ -3,10 +3,12 @@
 #include <string.h>
 #include <stdc.h>
 
+// TODO: make it thread-safe
+
 uint32_t ktr_mask = KTR_ALL;
 
-static int ktr_verbose = 1;         // print every log on insert
-static int ktr_format_verbose = 1;  // verbose level of print
+static int ktr_verbose = 1;        // print every log on insert
+static int ktr_print_verbose = 1;  // ktr_print_entry shows more details
 
 #define KTR_INIT_ENTRIES 1024
 struct ktr_entry ktr_entries_buffer[KTR_INIT_ENTRIES];
@@ -22,8 +24,7 @@ void ktr_print_entry(const struct ktr_entry *p_entry);
 
 void ktr_tracepoint(const char *filepath, int fileline, 
                     const char *format, int nargs, ...) {
-  if (nargs > KTR_MAX_ARGS)
-    return;
+  assert(nargs <= KTR_MAX_ARGS);
 
   struct ktr_entry *entry;
   va_list va_args;
@@ -46,27 +47,24 @@ void ktr_tracepoint(const char *filepath, int fileline,
 }
 
 int ktr_get_entry(struct ktr_entry *p_entry) {
-  int result = 0;
+  if (ktr_entry_first == ktr_entry_last)
+    return 0;
 
-  if (ktr_entry_first != ktr_entry_last) {
-    result = 1;
-    *p_entry = ktr_entries_buffer[ktr_entry_first];
-    ktr_entry_first = (ktr_entry_first + 1) % ktr_entries_size;
-  }
-
-  return result;
+  *p_entry = ktr_entries_buffer[ktr_entry_first];
+  ktr_entry_first = (ktr_entry_first + 1) % ktr_entries_size;
+  return 1;
 }
 
 void ktr_print_entry(const struct ktr_entry *p_entry) {
   if (p_entry == NULL)
     return;
 
-  if (ktr_format_verbose)
+  if (ktr_print_verbose)
     kprintf("%s:%d ", p_entry->ktr_filepath, p_entry->ktr_fileline);
 
   kprintf(p_entry->ktr_format, 
-      p_entry->ktr_args[0], p_entry->ktr_args[1], p_entry->ktr_args[2], 
-      p_entry->ktr_args[3], p_entry->ktr_args[4], p_entry->ktr_args[5]);
+          p_entry->ktr_args[0], p_entry->ktr_args[1], p_entry->ktr_args[2], 
+          p_entry->ktr_args[3], p_entry->ktr_args[4], p_entry->ktr_args[5]);
   kprintf("\n");
 }
 
